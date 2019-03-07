@@ -1,13 +1,15 @@
 #include <mex.h>
 
-#define printf(x) fprintf(stderr,x)
-
-#include <matrix.h>
+#include <stdio.h>
+#ifdef _OPENMP
+  #include <omp.h>
+  #undef printf
+  #define printf(...) fprintf(stderr,__VA_ARGS__)
+#else
+  #define printf mexPrintf
+#endif
 #include "math.h"
 
-#ifdef _OPENMP
-#include <omp.h>
-#endif
 
 #ifndef M_PI
 #    define M_PI 3.14159265358979323846
@@ -87,6 +89,17 @@ void mexFunction(
     if(!mxIsStruct(mcSrc))
         mexErrMsgIdAndTxt( "MATLAB:phonebook:inputNotStruct",
                 "Input 4 must be a mcSrc Structure.");
+
+
+    //Thread set-up
+
+#ifdef _OPENMP
+    int numOmpProcs = omp_get_num_procs();
+    mexPrintf("Number of cores: %d...\n", numOmpProcs);
+    omp_set_num_threads(numOmpProcs);
+#else
+    mexPrintf("ompMC was not compiled with OpenMP... using only 1 thread!\n");
+#endif
     
     
     //Parse Geometric Information
@@ -99,7 +112,7 @@ void mexFunction(
     unsigned int        nFields;
     int     nGeoStructFields;
     mwSize     ndim,nMaterials;
-    mwSize* materialDim;
+    const mwSize* materialDim;
     mxArray* tmpFieldPointer;//, tmpCellPointer;
     
     
@@ -431,6 +444,8 @@ void mexFunction(
     mwIndex linIx = 0;
     jcs[0] = 0;
     
+    double progress = 0.0;
+
     for(int ibeamlet=0; ibeamlet<source.nbeamlets; ibeamlet++) {
         for (int ibatch=0; ibatch<nbatch; ibatch++) {
 //             if (ibatch == 0) {
@@ -459,6 +474,19 @@ void mexFunction(
 
             /* Accumulate results of current batch for statistical analysis */
             accumEndep();
+
+            progress = ((double) ibeamlet + (double) (ibatch+1) / nbatch) / source.nbeamlets;
+
+            (*mxGetPr(waitbarProgress)) = progress;
+
+            if (waitbarOutput && waitbarHandle)
+            {              
+              waitbarInputs[0] = waitbarProgress;
+              waitbarInputs[1] = waitbarHandle;
+              waitbarInputs[2] = waitbarMessage;
+              status = mexCallMATLAB(0, waitbarOutput, 2, waitbarInputs, "waitbar");
+            }
+
         }
         
         int iout = 1;   /* i.e. deposit mean dose per particle fluence */
@@ -490,14 +518,24 @@ void mexFunction(
         if ((linIx + nnz) > nzmax)
         {
             int oldnzmax = nzmax;
-            percent_sparse += percentage_steps;
+            percent_sparse += percentage_steps;            
             
             nzmax = (mwSize) ceil((double)nCubeElements*(double)source.nbeamlets*percent_sparse);
             
+           
             
             /* Make sure nzmax increases atleast by 1. */
             if (oldnzmax == nzmax)
                 nzmax++;
+
+            /* Check that the new nmax is large enough and if not, also adjust the percentage_steps since we seem to have set it too small for this particular use case */
+            if (nzmax < (linIx + nnz))
+            {
+                nzmax = linIx + nnz;
+                percent_sparse = (double) nzmax / nCubeElements;
+                percentage_steps = percent_sparse;
+            }
+
             
             if (verbose_flag)
                 mexPrintf("Reallocating Sparse Matrix from nzmax=%d to nzmax=%d\n",oldnzmax,nzmax);
@@ -533,17 +571,18 @@ void mexFunction(
         /* Reset accum_endep for following beamlet */
         memset(score.accum_endep, 0.0, (gridsize + 1)*sizeof(double));
                 
-		    double progress = (double) (ibeamlet+1) / (double) source.nbeamlets;
+		    progress = (double) (ibeamlet+1) / (double) source.nbeamlets;
 		
+        (*mxGetPr(waitbarProgress)) = progress;
+
 		    //Update the waitbar with waitbar(hWaitbar,progress);
 		    if (waitbarOutput && waitbarHandle)
 		    {
-			  (* mxGetPr (waitbarProgress)) = progress;
-			  waitbarInputs[0] = waitbarProgress;
-			  waitbarInputs[1] = waitbarHandle;		
-			  waitbarInputs[2] = waitbarMessage;
-			  status = mexCallMATLAB(0,waitbarOutput,2,waitbarInputs,"waitbar");
-		  }
+			      waitbarInputs[0] = waitbarProgress;
+			      waitbarInputs[1] = waitbarHandle;		
+			      waitbarInputs[2] = waitbarMessage;
+			      status = mexCallMATLAB(0,waitbarOutput,2,waitbarInputs,"waitbar");
+		    }
         
     }
 	  mxDestroyArray (waitbarProgress);
@@ -601,11 +640,11 @@ void mexFunction(
       cleanRandom();
       cleanStack();
     }
-    
+	mexPrintf("Freed ompMC memory...\n");
+	
     /* Get total execution time */
-    tend = clock();
-    printf("Total execution time : %8.5f seconds\n",
-           (double)(tend - tbegin)/CLOCKS_PER_SEC);
+    mexPrintf("Total execution time : %8.5f seconds\n",
+           (double)(clock() - tbegin)/CLOCKS_PER_SEC);
         
     
     
