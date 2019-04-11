@@ -787,7 +787,7 @@ void parseInputFile(char *input_file) {
     
     /* Make space for the new string */
     char *extension = ".inp";
-    char* file_name = malloc(strlen(input_file) + strlen(extension) + 1);
+    char *file_name = malloc(strlen(input_file) + strlen(extension) + 1);
     strcpy(file_name, input_file);
     strcat(file_name, extension); /* add the extension */
     
@@ -1463,15 +1463,12 @@ void selectAzimuthalAngle(double *costhe, double *sinthe) {
 
 void uphi21(struct Uphi *uphi,
             double costhe, double sinthe) {
+    
+    int np = stack.np;
+
     /* This section is used if costhe and sinthe are already known. Phi
      is selected uniformly over the interval (0,2Pi) */
-    int np = stack.np;
-    /*double r1 = setRandom();
-    double phi = 2.0f*M_PI*r1;*/
     selectAzimuthalAngle(&(uphi->cosphi), &(uphi->sinphi));
-
-    /*uphi->sinphi = sin(phi);
-    uphi->cosphi = cos(phi);*/
     
     /* The following section is used for the second of two particles when it is
      known that there is a relationship in their corrections. In this version
@@ -1791,6 +1788,7 @@ void initStack() {
     return;
 }
 
+
 void initHistory(int ibeamlet) {
     
     double rnno1;
@@ -1915,54 +1913,51 @@ void initHistory(int ibeamlet) {
     stack.u[stack.np] = -u;
     stack.v[stack.np] = -v;
     stack.w[stack.np] = -w;
-	
-	// for numerical stability: make sure points are really inside
-    if (stack.x[stack.np] < geometry.xbounds[0])
+    /*
+    if (stack.x[stack.np] <= geometry.xbounds[0])
     {
-      //printf("Fixed out of Bounds for Particle %d: x diff from lower xbound=%f\n", stack.np, stack.x[stack.np] - geometry.xbounds[0]);
+      printf("Fixed out of Bounds for Particle %d: x diff from lower xbound=%f\n", stack.np, stack.x[stack.np] - geometry.xbounds[0]);
       stack.x[stack.np] = geometry.xbounds[0] + 2 * DBL_MIN;
     }
-    if (stack.x[stack.np] > geometry.xbounds[geometry.isize])
+    if (stack.x[stack.np] >= geometry.xbounds[geometry.isize + 1])
     {
-      //printf("Fixed out of Bounds for Particle %d: x diff from upper xbound=%f\n", stack.np, stack.x[stack.np] - geometry.xbounds[geometry.isize]);
-      stack.x[stack.np] = geometry.xbounds[geometry.isize] - 2 * DBL_MIN;
+      printf("Fixed out of Bounds for Particle %d: x diff from upper xbound=%f\n", stack.np, stack.x[stack.np] - geometry.xbounds[geometry.isize + 1]);
+      stack.x[stack.np] = geometry.xbounds[geometry.isize + 1] - 2 * DBL_MIN;
     }
-
-    if (stack.y[stack.np] < geometry.ybounds[0])
+    if (stack.y[stack.np] <= geometry.ybounds[0])
     {
-      //printf("Fixed out of Bounds for Particle %d: y diff from lower ybound=%f\n", stack.np, stack.y[stack.np] - geometry.ybounds[0]);
+      printf("Fixed out of Bounds for Particle %d: y diff from lower ybound=%f\n", stack.np, stack.y[stack.np] - geometry.ybounds[0]);
       stack.y[stack.np] = geometry.ybounds[0] + 2 * DBL_MIN;
     }
-    if (stack.y[stack.np] > geometry.ybounds[geometry.jsize])
+    if (stack.y[stack.np] >= geometry.ybounds[geometry.jsize + 1])
     {
-      //printf("Fixed out of Bounds for Particle %d: y diff from higher ybound=%f\n", stack.np, stack.y[stack.np] - geometry.ybounds[geometry.jsize]);
-      stack.y[stack.np] = geometry.ybounds[geometry.jsize] - 2 * DBL_MIN;
+      printf("Fixed out of Bounds for Particle %d: y diff from higher ybound=%f\n", stack.np, stack.y[stack.np] - geometry.ybounds[geometry.jsize + 1]);
+      stack.y[stack.np] = geometry.ybounds[geometry.jsize + 1] - 2 * DBL_MIN;
     }
-
-    if (stack.z[stack.np] < geometry.zbounds[0])
+    if (stack.z[stack.np] <= geometry.zbounds[0])
     {
-      //printf("Fixed out of Bounds for Particle %d: z diff from lower zbound=%f\n", stack.np, stack.z[stack.np] - geometry.zbounds[0]);
+      printf("Fixed out of Bounds for Particle %d: z diff from lower zbound=%f\n", stack.np, stack.z[stack.np] - geometry.zbounds[0]);
       stack.z[stack.np] = geometry.ybounds[0] + 2 * DBL_MIN;
     }
-    if (stack.z[stack.np] > geometry.zbounds[geometry.ksize])
+    if (stack.z[stack.np] >= geometry.zbounds[geometry.ksize + 1])
     {
-      //printf("Fixed out of Bounds for Particle %d: z diff from higher zbound=%f\n", stack.np, stack.z[stack.np] - geometry.zbounds[geometry.ksize]);
-      stack.z[stack.np] = geometry.zbounds[geometry.ksize] - 2 * DBL_MIN;
+      printf("Fixed out of Bounds for Particle %d: z diff from higher zbound=%f\n", stack.np, stack.z[stack.np] - geometry.zbounds[geometry.ksize + 1]);
+      stack.z[stack.np] = geometry.zbounds[geometry.ksize + 1] - 2 * DBL_MIN;
     }
-  
-	/* Determine region index of source particle */
+    */
+    /* Determine region index of source particle */
     int ix = 0;
-    while (geometry.xbounds[ix+1] < stack.x[stack.np]) {
+    while ((geometry.xbounds[ix+1] < stack.x[stack.np]) && ix < geometry.isize-1) {
         ix++;
     }
     
     int iy = 0;
-    while (geometry.ybounds[iy+1] < stack.y[stack.np]) {
+    while ((geometry.ybounds[iy+1] < stack.y[stack.np]) && iy < geometry.jsize-1) {
         iy++;
     }
     
     int iz = 0;
-    while (geometry.zbounds[iz+1] < stack.z[stack.np]) {
+    while ((geometry.zbounds[iz+1] < stack.z[stack.np]) && iz < geometry.ksize-1) {
         iz++;
     }
     
@@ -6685,11 +6680,8 @@ double msdist(int imed, int iq, double rhof, double de, double tustep,
 	mscat(imed, qel, &spin_index, &find_index, elke, beta2, xi, 
 		lambda,	chia2,	&w1, &sint1, &m_scat, &spin_r);
 
-	double cphi1;   // sine and cosine of the first azimuthal angle 
-    double sphi1;
-	double phi = 2.0*M_PI*setRandom();
-    cphi1 = cos(phi);
-    sphi1 = sin(phi);
+	double cphi1; double sphi1;  // sine and cosine of the first azimuthal angle 
+    selectAzimuthalAngle(&cphi1, &sphi1);
     
     /* Sample second substep scattering angle */
 	double w2;      // cosine of the second substep polar scattering angle
@@ -6697,11 +6689,8 @@ double msdist(int imed, int iq, double rhof, double de, double tustep,
 	mscat(imed, qel, &spin_index, &find_index, elke, beta2, xi, 
 		lambda,	chia2,	&w2, &sint2, &m_scat, &spin_r);
 
-	double cphi2;   // sine and cosine of the second azimuthal angle 
-    double sphi2;
-	phi = 2.0*M_PI*setRandom();
-    cphi2 = cos(phi);
-	sphi2 = sin(phi);
+	double cphi2; double sphi2; // sine and cosine of the second azimuthal angle 
+    selectAzimuthalAngle(&cphi2, &sphi2);
 
     /* Final direction of motion, relative to z-axis */
 	double u2 = sint2*cphi2;
@@ -7085,9 +7074,8 @@ void rannih() {
     
     /* Azimuthal angle selection */
     rnno = setRandom();
-    double phi = 2.0*M_PI*rnno;
-    double sinphi = sin(phi);
-    double cosphi = cos(phi);
+    double cosphi; double sinphi;
+    selectAzimuthalAngle(&cosphi, &sinphi);
     
     /* First photon */
     stack.e[np] = RM;
@@ -7254,9 +7242,8 @@ void brems() {
     double sinthe = sqrt(fmax(0.0 ,(1.0 - pow(costhe, 2.0))));
 
     /* Azimuthal angle sampling */
-    double phi = 2.0*setRandom()*M_PI;
-    double cphi = cos(phi);
-    double sphi = sin(phi);
+    double cphi; double sphi;
+    selectAzimuthalAngle(&cphi, &sphi);
 
     if( sinpsi >= 1.0E-10 ) {
         double us = sinthe*cphi;
@@ -7498,9 +7485,7 @@ void annih() {
 
 	/* The following variables are for azimuthal angle sampling */
 	double sphi; double cphi;   // sine and cosine of the azimuthal angle
-	double phi = 2.0*M_PI*setRandom();
-	sphi = sin(phi);
-    cphi = cos(phi);
+    selectAzimuthalAngle(&cphi, &sphi);
 
 	double us; double vs; // for inline rotations
 	if(sinpsi >= 1.0E-10) { 
