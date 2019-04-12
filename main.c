@@ -766,6 +766,7 @@ int main (int argc, char **argv) {
     cleanSpin();
     cleanRegions();
     cleanScore();
+    cleanSource();
     #pragma omp parallel
     {
       cleanRandom();
@@ -2110,8 +2111,6 @@ int readPegsFile(int *media_found) {
 
             /* Next algorithm take out spaces */
             name_with_spaces[c] = '\0';
-            //printf("\t Medium: %s", name_with_spaces);
-
             char name[25];
             int j = 0;
             /* Read name up to first space */
@@ -2140,7 +2139,6 @@ int readPegsFile(int *media_found) {
                 }
             }
             if (required == 0) { // return to beginning of the do loop
-                //printf(" not required!\n");
                 continue;
             }
             
@@ -2243,7 +2241,6 @@ int readPegsFile(int *media_found) {
                 i++;
             }
             if (!ok) {
-                //printf(" not required!\n");
                 continue;
             } // end of 2nd line readings
             
@@ -2446,7 +2443,6 @@ int readPegsFile(int *media_found) {
             /* Mark the medium found */
             media_found[imed] = 1;
             nmedia++;
-            //printf(" required and loaded!\n");
         }
     } while ((nmedia < geometry.nmed) && !feof(fp));
     
