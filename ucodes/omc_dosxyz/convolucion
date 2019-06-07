@@ -1,0 +1,60 @@
+#include <stdio.h>
+#include <stdlib.h>
+ 
+#define PUNTOS_X (6)
+#define PUNTOS_H (4)
+#define PUNTOS_Y ((PUNTOS_X) + (PUNTOS_H) - 1)
+ 
+/* Los metodos tienen la misma interfaz:
+    x, h ---> son las señales de entrada
+       y ---> es la señal de salida        */
+void input_side_conv(int *x, int *h, int *y)
+{
+    int i,j;
+    for(i=0;i<PUNTOS_X; i++)
+        for(j=0;j<PUNTOS_H;j++)
+            y[i+j]=y[i+j]+x[i]*h[j];
+}
+ 
+void output_side_conv(int *x, int *h, int *y)
+{
+    int i,j;
+ 
+    for(i=0;i<PUNTOS_Y; i++) {
+        y[i]=0;
+        for(j=0;j<PUNTOS_H;j++) {
+            if(i-j<0 || i-j>=PUNTOS_X) continue;
+            y[i] = y[i]+h[j]*x[i-j];
+        }
+    }
+}
+ 
+int main()
+{
+    int x[PUNTOS_X] = {0,-1,-1,2,1,1};
+    int h[PUNTOS_H] = {1,0,-1,1};
+    int y1[PUNTOS_Y] = {0,0,0,0,0,0,0,0,0};
+    int y2[PUNTOS_Y] = {0,0,0,0,0,0,0,0,0};
+ 
+    int i;
+ 
+    //calculamos la convolucion por el primer metodo
+    input_side_conv(x, h, y1);
+    //calculamos la convolucion por el otro metodo
+    output_side_conv(x, h, y2);
+ 
+    //mostramos las dos respuestas
+    printf("Input Side        Output Side\n");
+    for(i=0;i<PUNTOS_Y;i++)
+        printf("[%2d]              [%d]\n", y1[i], y2[i]);
+ 
+    return 0;
+}
+
+/*Vemos que he definido 3 constantes simbólicas con #define. Las mismas son PUNTOS_X, PUNTOS_H y PUNTOS_Y. Cada uno denota la cantidad de puntos que tiene cada señal involucrada. En el caso de PUNTOS_Y se puede obtener con la operación que puse, según la fórmula que expliqué en la primera parte de esta serie de artículos.
+
+Luego siguen las definiciones de las funciones que calculan la convolución. Ambas dan el mismo resultado, pero cada una lo calcula de forma distinta.
+
+Finalmente, tenemos un main() que lo unico que hace es fijar valores para x[n] y h[n] y luego realiza la convolución de las mismas en dos señales de salida, y1[n] e y2[n] y muestra en forma "de tabla" el resultado de ambas para simplificar la comparación y ver que dan el mismo resultado.
+
+La diferencia importante de la que hablé recién, es la siguiente: si observamos con detalle cómo se calcula cada convolución, podemos notar que la segunda forma, output_side_conv() tiene una ventaja importante, y ésta es que permite calcular un valor específico de y[n] sin que sea necesario conocer todos los puntos de x[n], sino solo los necesarios. En cambio, en la otra función necestiamos conocer todos los puntos de x[n] de antemano, ya que los recorremos uno a uno, y en base a esto vamos calculando cada valor de y[n]. ¿Por qué esto es tan importante? Porque generalmente, no contamos con todos los puntos de x[n] ya que muchas veces se necesita obtener la convolución a medida que se va obteniendo la señal x[n], es decir, obtener y[n] en tiempo real./*
