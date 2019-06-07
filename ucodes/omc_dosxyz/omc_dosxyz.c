@@ -683,7 +683,8 @@ void ausgab(double edep) {
     int np = stack.np;
     int irl = stack.ir[np];
     double endep = stack.wt[np]*edep;
-
+    
+    #pragma omp atomic
     score.pcounter[irl] += 1;
         
     /* Deposit particle energy on spot */
@@ -772,11 +773,11 @@ void accumulateResults(int iout, int nhist, int nbatch)
                     endep *= 1.602E-10/(mass*inc_fluence);
                     
                 } else {    /* Output mean deposited energy per voxel */
-                    if (pcounter != 0.0) {
-                        endep /= ((double)pcounter/nbatch);
+                    /*if (pcounter != 0.0) {
+                       endep /= ((double)pcounter/nbatch);
                     } else {
                         endep = 0.0;
-                    }
+                    }*/
                 }
                 
                 /* Store output quantities */
@@ -1287,7 +1288,7 @@ int main (int argc, char **argv) {
                score.accum_endep[0]/score.ensrc);
     }
     
-    int iout = 1;   /* i.e. deposit mean dose per particle fluence */
+    int iout = 0;   /* i.e. deposit mean dose per particle fluence */
     outputResults(output_file, iout, nperbatch, nbatch);
     
     /* Cleaning */
