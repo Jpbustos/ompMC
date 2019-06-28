@@ -15,7 +15,12 @@ rng seeds = 97 33
 # start geometry
 method of input = phantom
 phantom file = ./../../phantoms/WATER.egsphant
-# stop geometry         
+# stop geometry
+
+# start Kernel
+method of input = Kernel
+kernel file = ./../../omc_dosxyz⁩/Kernel⁩/kernel_file.txt
+# stop Kernel  
                               
 # start MC transport
 global ecut = 0.700

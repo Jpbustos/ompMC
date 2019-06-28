@@ -1086,6 +1086,204 @@ void initHistory() {
     return;
 }
 
+struct Kernel {
+    int nenergy;
+    int isize;
+    int jsize;
+    int ksize;
+    int kernel_size;
+
+    double *energy;
+    double *kernels;
+};
+struct Kernel kernel;
+
+void initKernels() {
+    /* Get kernel file path from input data */
+    char kernel_file[BUFFER_SIZE];//para que el numero?
+    char buffer[BUFFER_SIZE];
+    
+    if (getInputValue(buffer, "kernel file") != 1) {
+        printf("Can not find 'kernel file' key on input file.\n");
+        exit(EXIT_FAILURE);
+    }
+    removeSpaces(kernel_file, buffer);
+
+    /* Open .txt file */
+    FILE *fp;
+    
+    if ((fp = fopen(kernel_file, "r")) == NULL) {
+        printf("Unable to open file: %s\n", kernel_file);
+        exit(EXIT_FAILURE);
+    }
+    
+    printf("Path to kernel file : %s\n", kernel_file);
+
+    /* Get number of total energies on kernel */
+    fgets(buffer, BUFFER_SIZE, fp);
+    kernel.nenergy = atoi(buffer);
+    
+    /* Read energy array */
+    kernel.energy = malloc((kernel.nenergy)*sizeof(double));
+    for (int i=0; i<kernel.nenergy; i++) {
+        fscanf(fp, "%lf", &kernel.energy[i]);
+    }
+
+    /* Skip the rest of the last line and jump to next one */
+    fgets(buffer, BUFFER_SIZE, fp);
+    
+    /* Get kernel size on each direction */
+    sscanf(buffer, "%d %d %d", &kernel.isize,
+           &kernel.jsize, &kernel.ksize);
+    
+    /* Read kernel values */
+    kernel.kernel_size = kernel.isize*kernel.jsize*kernel.ksize;
+    kernel.kernels = malloc((kernel.kernel_size*kernel.nenergy)*sizeof(double));
+    
+    for (int i=0; i<kernel.nenergy; i++) {
+        for (int j=0; j<kernel.kernel_size; j++) {
+            fscanf(fp, "%lf", &kernel.kernels[i*kernel.kernel_size + j]);
+        }
+
+        /* Skip the rest of the last line read before reading next kernel */
+        fgets(buffer, BUFFER_SIZE, fp);
+    }      
+
+    /* Close kernel file */
+    fclose(fp);
+
+    return;
+}
+
+void listKernels() {
+
+    /* Get file path from input data */
+    char output_folder[128];
+    char buffer[BUFFER_SIZE];
+    
+    if (getInputValue(buffer, "output folder") != 1) {
+        printf("Can not find 'output folder' key on input file.\n");
+        exit(EXIT_FAILURE);
+    }
+    removeSpaces(output_folder, buffer);
+    
+    char file_name[256];
+    strcpy(file_name, output_folder);
+    strcat(file_name, "kernel_data.lst");    
+
+    /* List photon data to output file */
+    FILE *fp;
+    if ((fp = fopen(file_name, "w")) == NULL) {
+        printf("Unable to open file: %s\n", file_name);
+        exit(EXIT_FAILURE);
+    }
+
+    fprintf(fp, "Listing kernel data: \n");
+    
+        fprintf(fp, "Energies = \n",kernel.nenergy);
+        
+        fprintf(fp, "\n");
+     
+     for (int i=0; i<kernel.nenergy; i++) {
+        fprintf(fp, "%lf", kernel.energy[i]);
+    }   
+       
+        fprintf(fp, "\n");
+        
+        fprintf(fp, "%d %d %d", kernel.isize,
+           kernel.jsize, kernel.ksize);
+        
+        fprintf(fp, "\n");
+        
+     for (int i=0; i<kernel.nenergy; i++) {
+        for (int j=0; j<kernel.kernel_size; j++) {
+            fprintf(fp, "%lf", kernel.kernels[i*kernel.kernel_size + j]);
+        }
+  
+    }      
+    
+        fprintf(fp, "\n");
+    
+    fclose(fp);
+    
+    return;
+}
+
+void electronKernel() {
+    int np = stack.np;
+    int irl = stack.ir[np];
+
+    stack.wt[stack.np] = 1.0;
+    
+    double E0 = stack.e[stack.np];
+
+/* If here, the particle is in the geometry, do transport checks */
+    int ijmax = geometry.isize*geometry.jsize;
+    int imax = geometry.isize;
+
+/* We need to decode the region number of phantom in terms of
+     the region indices in each direction */
+    int irx = (irl - 1)%imax;
+    int irz = (irl - 1 - irx)/ijmax;
+    int iry = ((irl- 1 -irx) - irz*ijmax)/imax;
+
+/* We need the region number of kernel in terms of
+     the region indices in each direction and total voxels */
+     int irkx = kernel.isize;
+     int irky = kernel.jsize;
+     int irkz = kernel.ksize;
+     int tot_irk = kernel.isize*kernel.jsize*kernel.ksize;
+
+/**/
+    int idxE = 0.0;
+
+    while (E0 >= kernel.energy[idxE]){
+        idxE++;
+    }
+
+/**/
+    int Ip;
+    int Jp;
+    int Kp;
+    int idxk;
+    int idxp;
+
+    for (int k = 0; k < irkz; k++){
+        for (int j = 0; j < irky; j++){
+            for (int i = 0; i < irkx; i++){
+                
+                Ip = irx + (i - ceil(irkx/2));
+                Jp = iry + (j - ceil(irky/2));
+                Kp = irz + (k - ceil(irkz/2));
+                idxk = i+(j-1)*irkx+(k-1)*irkx*irky;
+
+                if (Kp >= 0 && Kp < irz){
+                    if (Jp >= 0 && Jp < iry){
+                        if (Ip >= 0 && Ip < irx){
+                           
+                           idxp = Ip+(Jp-1)*irx+(Kp-1)*irx*iry;
+
+                           score.endep[idxp] += kernel.kernels[idxE*tot_irk+idxk]+(E0-kernel.energy[idxE]*(kernel.kernels[(idxE+1)*tot_irk+idxk])-kernel.kernels[idxE*tot_irk+idxk])/(kernel.energy[idxE+1]-kernel.energy[idxE]);
+                        }        
+                    }
+                }
+            } 
+        }  
+    }
+    
+
+
+    return;
+}
+
+void cleanKernels() {
+
+    free(kernel.energy);
+    free(kernel.kernels);
+    
+    return;
+}
+
 /******************************************************************************/
 /* omc_dosxyz main function */
 int main (int argc, char **argv) {
@@ -1175,6 +1373,8 @@ int main (int argc, char **argv) {
     
     /* Read geometry information from phantom file and initialize geometry */
     initPhantom();
+
+    initKernels();
     
     /* With number of media and media names initialize the medium data */
     initMediaData();
@@ -1207,6 +1407,7 @@ int main (int argc, char **argv) {
         listElectron();
         listMscat();
         listSpin();
+        listKernels();
     }
     
     /* Shower call */
@@ -1263,7 +1464,13 @@ int main (int argc, char **argv) {
             initHistory();
             
             /* Start electromagnetic shower simulation */
-            shower();
+            while (stack.np >= 0) {
+                if (stack.iq[stack.np] == 0) {
+                    photon();
+                } else {
+                    electronKernel();
+                }
+            }
         }
         
         /* Accumulate results of current batch for statistical analysis */
@@ -1288,7 +1495,7 @@ int main (int argc, char **argv) {
                score.accum_endep[0]/score.ensrc);
     }
     
-    int iout = 0;   /* i.e. deposit mean dose per particle fluence */
+    int iout = 1;   /* i.e. deposit mean dose per particle fluence */
     outputResults(output_file, iout, nperbatch, nbatch);
     
     /* Cleaning */
@@ -1297,6 +1504,7 @@ int main (int argc, char **argv) {
     cleanRayleigh();
     cleanPair();
     cleanElectron();
+    cleanKernels();
     cleanMscat();
     cleanSpin();
     cleanRegions();
