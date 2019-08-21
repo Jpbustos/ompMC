@@ -1123,19 +1123,26 @@ void initKernels() {
     fgets(buffer, BUFFER_SIZE, fp);
     kernel.nenergy = atoi(buffer);
     
+    printf("Number of energies in kernels, %d\n", kernel.nenergy);
+
     /* Read energy array */
     kernel.energy = malloc((kernel.nenergy)*sizeof(double));
     for (int i=0; i<kernel.nenergy; i++) {
         fscanf(fp, "%lf", &kernel.energy[i]);
+        //printf("%f, ", kernel.energy[i]);
     }
+    printf("\n");
 
     /* Skip the rest of the last line and jump to next one */
     fgets(buffer, BUFFER_SIZE, fp);
     
     /* Get kernel size on each direction */
+    fgets(buffer, BUFFER_SIZE, fp);
     sscanf(buffer, "%d %d %d", &kernel.isize,
            &kernel.jsize, &kernel.ksize);
-    
+
+    printf("Kernel size:, %d %d %d\n", kernel.isize, kernel.jsize, kernel.ksize);
+            
     /* Read kernel values */
     kernel.kernel_size = kernel.isize*kernel.jsize*kernel.ksize;
     kernel.kernels = malloc((kernel.kernel_size*kernel.nenergy)*sizeof(double));
@@ -1143,10 +1150,11 @@ void initKernels() {
     for (int i=0; i<kernel.nenergy; i++) {
         for (int j=0; j<kernel.kernel_size; j++) {
             fscanf(fp, "%lf", &kernel.kernels[i*kernel.kernel_size + j]);
-        }
-
+            //printf("%e, ", kernel.kernels[i*kernel.kernel_size + j]);
+        }        
         /* Skip the rest of the last line read before reading next kernel */
         fgets(buffer, BUFFER_SIZE, fp);
+        //printf("\n");
     }      
 
     /* Close kernel file */
@@ -1180,12 +1188,12 @@ void listKernels() {
 
     fprintf(fp, "Listing kernel data: \n");
     
-        fprintf(fp, "Energies = \n",kernel.nenergy);
+        fprintf(fp, "Energies = %d\n",kernel.nenergy);
         
         fprintf(fp, "\n");
      
      for (int i=0; i<kernel.nenergy; i++) {
-        fprintf(fp, "%lf", kernel.energy[i]);
+        fprintf(fp, "%lf \n", kernel.energy[i]);
     }   
        
         fprintf(fp, "\n");
@@ -1197,7 +1205,7 @@ void listKernels() {
         
      for (int i=0; i<kernel.nenergy; i++) {
         for (int j=0; j<kernel.kernel_size; j++) {
-            fprintf(fp, "%lf", kernel.kernels[i*kernel.kernel_size + j]);
+            fprintf(fp, "%e \n", kernel.kernels[i*kernel.kernel_size + j]);
         }
   
     }      
@@ -1211,12 +1219,12 @@ void listKernels() {
 
 void electronKernel() {
     int np = stack.np;
-    int irl = stack.ir[np];
+    int irl = stack.ir[np];    
+    double E0 = stack.e[stack.np] - RM;
+    double edep;
 
-    stack.wt[stack.np] = 1.0;
+    //printf("%f, ",E0);
     
-    double E0 = stack.e[stack.np];
-
 /* If here, the particle is in the geometry, do transport checks */
     int ijmax = geometry.isize*geometry.jsize;
     int imax = geometry.isize;
@@ -1235,12 +1243,14 @@ void electronKernel() {
      int tot_irk = kernel.isize*kernel.jsize*kernel.ksize;
 
 /**/
-    int idxE = 0.0;
 
-    while (E0 >= kernel.energy[idxE]){
-        idxE++;
+    int idxE = 0;
+    
+        while (E0 >= kernel.energy[idxE]){
+            idxE++;
+    
     }
-
+    
 /**/
     int Ip;
     int Jp;
@@ -1248,22 +1258,34 @@ void electronKernel() {
     int idxk;
     int idxp;
 
-    for (int k = 0; k < irkz; k++){
-        for (int j = 0; j < irky; j++){
+    for (int k = 0; k < irkz; k++){        
+        for (int j = 0; j < irky; j++){ 
             for (int i = 0; i < irkx; i++){
                 
                 Ip = irx + (i - ceil(irkx/2));
                 Jp = iry + (j - ceil(irky/2));
                 Kp = irz + (k - ceil(irkz/2));
-                idxk = i+(j-1)*irkx+(k-1)*irkx*irky;
 
+                
+                idxk = i+(j)*irkx+(k)*irkx*irky;
+                
                 if (Kp >= 0 && Kp < irz){
                     if (Jp >= 0 && Jp < iry){
                         if (Ip >= 0 && Ip < irx){
                            
-                           idxp = Ip+(Jp-1)*irx+(Kp-1)*irx*iry;
-
-                           score.endep[idxp] += kernel.kernels[idxE*tot_irk+idxk]+(E0-kernel.energy[idxE]*(kernel.kernels[(idxE+1)*tot_irk+idxk])-kernel.kernels[idxE*tot_irk+idxk])/(kernel.energy[idxE+1]-kernel.energy[idxE]);
+                           idxp = Ip+(Jp)*irx+(Kp)*irx*iry;
+                           edep = kernel.kernels[idxE*tot_irk+idxk]+(E0-kernel.energy[idxE]*(kernel.kernels[(idxE+1)*tot_irk+idxk])-kernel.kernels[idxE*tot_irk+idxk])/(kernel.energy[idxE+1]-kernel.energy[idxE]);
+                           edep *= E0;
+                            //printf("%d %d %d \n",idxE, idxk,idxp);
+                            //printf("%e %e %e %e \n", kernel.kernels[idxE*tot_irk+idxk], E0, kernel.energy[idxE], kernel.kernels[(idxE+1)*tot_irk+idxk]);
+                           //printf("%e \n", E0);
+                            if(isnan(edep))
+                            {
+                                printf("%e %e %e %e \n", kernel.kernels[idxE*tot_irk+idxk], E0, kernel.energy[idxE], kernel.kernels[(idxE+1)*tot_irk+idxk]);
+                                exit(1);
+                            }
+                            
+                           score.endep[idxp] += edep;                           
                         }        
                     }
                 }
@@ -1271,7 +1293,9 @@ void electronKernel() {
         }  
     }
     
-
+    /* Remove electron from stack */
+    np -= 1;
+    stack.np = np;
 
     return;
 }

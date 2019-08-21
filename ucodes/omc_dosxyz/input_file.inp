@@ -7,7 +7,7 @@ ssd = 90.0
 # end source definition
                               
 # start MC control          
-ncase  = 1000000
+ncase  = 10000
 nbatch = 10
 rng seeds = 97 33
 # stop MC control           
@@ -19,7 +19,7 @@ phantom file = ./../../phantoms/WATER.egsphant
 
 # start Kernel
 method of input = Kernel
-kernel file = ./../../omc_dosxyz⁩/Kernel⁩/kernel_file.txt
+kernel file = ./Kernel/kernel_file.txt
 # stop Kernel  
                               
 # start MC transport

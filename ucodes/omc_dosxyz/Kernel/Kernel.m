@@ -5,8 +5,8 @@ data_udose = zeros(61,1620);
 e_1 = 1;
 e_2 = 61;
 
-fi = fopen('Kernel_File.txt','w');
-num_energies = 60;
+fi = fopen('kernel_file.txt','w');
+num_energies = 61;
 fprintf(fi,'%d \n',num_energies);
 fprintf(fi,'\n');
 
@@ -35,18 +35,30 @@ for E = e_1:e_2
     
     % Write kernel size to file only one time
     if E == e_1
+        fprintf(fi,'\n');
         fprintf(fi,'%d %d %d \t',num_vox_x,num_vox_y,num_vox_z);
         fprintf(fi,'\n');
     end
     
     %Eliminaci???n de la primera fila ya que no son datos num???ricos
     d_dose(1,:)=[];
-    d_udose(1,:)=[];   
- 
+    d_udose(1,:)=[];  
+    
+    % Transformacion d_dose y d_udose a double y suma de los elementos
+    d_dose = str2double(d_dose);
+    d_udose = str2double(d_udose);
+    S = sum(d_dose);
+    
+    %Normalizacion
+    if S > 0.0 
+    d_dose(:) = d_dose(:)/S; 
+    end
+    
     % Definici???n de kernels en funci???n de la energ???a y posici???n 
     for idx = 1:tot_vox               
-        data_dose(E,idx) = str2double(d_dose(idx));
+        data_dose(E,idx) = d_dose(idx);
 %        data_udose(E,idx) = str2double(d_udose(idx));
+        fprintf(fi,'\n');
         fprintf(fi, '%e ', data_dose(E,idx));
     end
     
